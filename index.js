@@ -4,8 +4,9 @@ const { ChatMistralAI } = require("@langchain/mistralai");
 const { HumanMessage, AIMessage } = require("@langchain/core/messages"); // for creating chat history
 const { PromptTemplate } = require("@langchain/core/prompts");
 const { tool } = require("@langchain/core/tools");
-const { z } = require("zod");
-
+const { z, Schema } = require("zod");
+const { StateGraph, MessagesAnnotation } = require("@langchain/langgraph");
+const { tavily } = require("@tavily/core");
 // creating a model instance for Google Gemini
 
 const model = new ChatGoogleGenerativeAI({
@@ -65,8 +66,9 @@ const template = PromptTemplate.fromTemplate(
 //   })
 //   .then((response) => console.log(response.text));
 
+// creating a tool for the model to add two numbers
 const addTwoNumbers = tool(
-  async ({a, b}) => {
+  async ({ a, b }) => {
     return `the sum of ${a} and ${b} is ${a + b}`;
   },
   {
@@ -79,10 +81,58 @@ const addTwoNumbers = tool(
   }
 );
 
+// binding the tool to the model
 const modelWithTool = model.bindTools([addTwoNumbers]);
-modelWithTool.invoke([new HumanMessage("what is 2 + 3?")]).then((response) => {
-  const callToTool = response.tool_calls[0];
-  addTwoNumbers.invoke(callToTool.args).then((toolResponse) => {
-    console.log("Response from tool: ", toolResponse);
+// invoking the model with the tool
+// the model will decide when to use the tool based on the user input
+// here we are asking the model to add two numbers
+// modelWithTool.invoke([new HumanMessage("what is 2 + 3?")]).then((response) => {
+//   const callToTool = response.tool_calls[0];
+//   addTwoNumbers.invoke(callToTool.args).then((toolResponse) => {
+//     console.log("Response from tool: ", toolResponse);
+//   });
+// });
+
+// using tavily to search the web example
+
+// async function main() {
+//   const tvly = tavily({ apiKey: process.env.TAVIT_API_KEY });
+//   const response = await tvly.search("Who is Leo Messi?");
+//   console.log(response);
+// }
+
+// main();
+
+const searchTool = tool(
+  async ({ query = "" }) => {
+    const result = await tavily.search(query);
+    return JSON.stringify(result.results);
+  },
+  {
+    name: "searchTool",
+    description: "useful for when you need to answer questions about topics.",
+    schema: z.object({
+      query: z.string().describe("the search query"),
+    }),
+  }
+);
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode("LLM", async (state) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    const modelWithBindTool = model.bindTools([searchTool]);
+    const response = await modelWithBindTool.invoke([lastMessage]);
+    state.messages.push(response);
+    return state;
+  })
+  .addNode("TOOLS", async (state) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    const toolCall = lastMessage.tool_calls?.[0];
+    const result = await searchTool.invoke(toolCall?.args ?? {});
+    const toolMessage = new ToolMessage({
+      name: toolCall?.name,
+      content: result,
+    });
+    state.messages.push(toolMessage);
+    return state;
   });
-});
