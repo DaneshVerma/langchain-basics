@@ -1,7 +1,11 @@
 const dotenv = require("dotenv").config();
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
 const { ChatMistralAI } = require("@langchain/mistralai");
-const { HumanMessage, AIMessage } = require("@langchain/core/messages"); // for creating chat history
+const {
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+} = require("@langchain/core/messages"); // for creating chat history
 const { PromptTemplate } = require("@langchain/core/prompts");
 const { tool } = require("@langchain/core/tools");
 const { z, Schema } = require("zod");
@@ -105,7 +109,8 @@ const modelWithTool = model.bindTools([addTwoNumbers]);
 
 const searchTool = tool(
   async ({ query = "" }) => {
-    const result = await tavily.search(query);
+    const tavilySearch = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    const result = await tavilySearch.search(query);
     return JSON.stringify(result.results);
   },
   {
@@ -135,4 +140,26 @@ const graph = new StateGraph(MessagesAnnotation)
     });
     state.messages.push(toolMessage);
     return state;
+  })
+  .addEdge("__start__", "LLM")
+  .addEdge("TOOLS", "LLM")
+  .addConditionalEdges("LLM", async (state) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (lastMessage.tool_calls?.length) {
+      return "TOOLS";
+    }
+    return "__end__";
+  });
+
+const agent = graph.compile();
+
+agent
+  .invoke({
+    messages: [new HumanMessage("Who is Leo Messi?")],
+  })
+  .then((response) => {
+    console.log(
+      "Final response: ",
+      response.messages[response.messages.length - 1].text
+    );
   });
