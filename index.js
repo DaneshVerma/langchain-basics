@@ -154,8 +154,10 @@ const template = PromptTemplate.fromTemplate(
 //     return "__end__";
 //   });
 
-// const agent = graph.compile();
+// const agent = graph.compile(); // this creates the instance of model + tool graph for use
 
+
+// using the above graph instacne
 // agent
 //   .invoke(
 //     {
@@ -170,9 +172,12 @@ const template = PromptTemplate.fromTemplate(
 //     );
 //   });
 
+
+// model instance generating embeddigns
 const emmbedder = new GoogleGenerativeAIEmbeddings({
   model: "gemini-embedding-001",
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
+// querying into model to generate embeddings of the txt
 emmbedder.embedQuery("hii").then((e)=>{console.log(e)}).catch(err => console.log(err.message))
