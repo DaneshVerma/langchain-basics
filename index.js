@@ -110,62 +110,69 @@ const template = PromptTemplate.fromTemplate(
 
 // main();
 
-const searchTool = tool(
-  async ({ query = "" }) => {
-    const tavilySearch = tavily({ apiKey: process.env.TAVILY_API_KEY });
-    const result = await tavilySearch.search(query);
-    return JSON.stringify(result.results);
-  },
-  {
-    name: "searchTool",
-    description: "useful for when you need to answer questions about topics.",
-    schema: z.object({
-      query: z.string().describe("the search query"),
-    }),
-  }
-);
+// const searchTool = tool(
+//   async ({ query = "" }) => {
+//     const tavilySearch = tavily({ apiKey: process.env.TAVILY_API_KEY });
+//     const result = await tavilySearch.search(query);
+//     return JSON.stringify(result.results);
+//   },
+//   {
+//     name: "searchTool",
+//     description: "useful for when you need to answer questions about topics.",
+//     schema: z.object({
+//       query: z.string().describe("the search query"),
+//     }),
+//   }
+// );
 
-const graph = new StateGraph(MessagesAnnotation)
-  .addNode("LLM", async (state) => {
-    const lastMessage = state.messages[state.messages.length - 1];
-    const modelWithBindTool = model.bindTools([searchTool]);
-    const response = await modelWithBindTool.invoke([lastMessage]);
-    state.messages.push(response);
-    return state;
-  })
-  .addNode("TOOLS", async (state) => {
-    const lastMessage = state.messages[state.messages.length - 1];
-    const toolCall = lastMessage.tool_calls?.[0];
-    const result = await searchTool.invoke(toolCall?.args ?? {});
-    const toolMessage = new ToolMessage({
-      name: toolCall?.name,
-      content: result,
-    });
-    state.messages.push(toolMessage);
-    return state;
-  })
-  .addEdge("__start__", "LLM")
-  .addEdge("TOOLS", "LLM")
-  .addConditionalEdges("LLM", async (state) => {
-    const lastMessage = state.messages[state.messages.length - 1];
-    if (lastMessage.tool_calls?.length) {
-      return "TOOLS";
-    }
-    return "__end__";
-  });
+// const graph = new StateGraph(MessagesAnnotation)
+//   .addNode("LLM", async (state) => {
+//     const lastMessage = state.messages[state.messages.length - 1];
+//     const modelWithBindTool = model.bindTools([searchTool]);
+//     const response = await modelWithBindTool.invoke([lastMessage]);
+//     state.messages.push(response);
+//     return state;
+//   })
+//   .addNode("TOOLS", async (state) => {
+//     const lastMessage = state.messages[state.messages.length - 1];
+//     const toolCall = lastMessage.tool_calls?.[0];
+//     const result = await searchTool.invoke(toolCall?.args ?? {});
+//     const toolMessage = new ToolMessage({
+//       name: toolCall?.name,
+//       content: result,
+//     });
+//     state.messages.push(toolMessage);
+//     return state;
+//   })
+//   .addEdge("__start__", "LLM")
+//   .addEdge("TOOLS", "LLM")
+//   .addConditionalEdges("LLM", async (state) => {
+//     const lastMessage = state.messages[state.messages.length - 1];
+//     if (lastMessage.tool_calls?.length) {
+//       return "TOOLS";
+//     }
+//     return "__end__";
+//   });
 
-const agent = graph.compile();
+// const agent = graph.compile();
 
-agent
-  .invoke(
-    {
-      messages: [new HumanMessage("Who is Leo Messi?")],
-    },
-    { recursionLimit: 5 }
-  )
-  .then((response) => {
-    console.log(
-      "Final response: ",
-      response.messages[response.messages.length - 1].text
-    );
-  });
+// agent
+//   .invoke(
+//     {
+//       messages: [new HumanMessage("Who is Leo Messi?")],
+//     },
+//     { recursionLimit: 5 }
+//   )
+//   .then((response) => {
+//     console.log(
+//       "Final response: ",
+//       response.messages[response.messages.length - 1].text
+//     );
+//   });
+
+const emmbedder = new GoogleGenerativeAIEmbeddings({
+  model: "gemini-embedding-001",
+  apiKey: process.env.GOOGLE_API_KEY,
+});
+
+emmbedder.embedQuery("hii").then((e)=>{console.log(e)}).catch(err => console.log(err.message))
