@@ -1,5 +1,8 @@
 const dotenv = require("dotenv").config();
-const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
+const {
+  ChatGoogleGenerativeAI,
+  GoogleGenerativeAIEmbeddings,
+} = require("@langchain/google-genai");
 const { ChatMistralAI } = require("@langchain/mistralai");
 const {
   HumanMessage,
@@ -71,22 +74,22 @@ const template = PromptTemplate.fromTemplate(
 //   .then((response) => console.log(response.text));
 
 // creating a tool for the model to add two numbers
-const addTwoNumbers = tool(
-  async ({ a, b }) => {
-    return `the sum of ${a} and ${b} is ${a + b}`;
-  },
-  {
-    name: "addTwoNumbers",
-    description: "adds two numbers together and returns the result",
-    schema: z.object({
-      a: z.number().describe("the first number to add"),
-      b: z.number().describe("the second number to add"),
-    }),
-  }
-);
+// const addTwoNumbers = tool(
+//   async ({ a, b }) => {
+//     return `the sum of ${a} and ${b} is ${a + b}`;
+//   },
+//   {
+//     name: "addTwoNumbers",
+//     description: "adds two numbers together and returns the result",
+//     schema: z.object({
+//       a: z.number().describe("the first number to add"),
+//       b: z.number().describe("the second number to add"),
+//     }),
+//   }
+// );
 
 // binding the tool to the model
-const modelWithTool = model.bindTools([addTwoNumbers]);
+// const modelWithTool = model.bindTools([addTwoNumbers]);
 // invoking the model with the tool
 // the model will decide when to use the tool based on the user input
 // here we are asking the model to add two numbers
@@ -154,9 +157,12 @@ const graph = new StateGraph(MessagesAnnotation)
 const agent = graph.compile();
 
 agent
-  .invoke({
-    messages: [new HumanMessage("Who is Leo Messi?")],
-  })
+  .invoke(
+    {
+      messages: [new HumanMessage("Who is Leo Messi?")],
+    },
+    { recursionLimit: 5 }
+  )
   .then((response) => {
     console.log(
       "Final response: ",
