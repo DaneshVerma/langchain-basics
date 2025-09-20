@@ -204,15 +204,33 @@ const pinecone = new PineconeClient({
 const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX);
 
 // generating vectors ans storting data to pinecone
-emmbedder
-  .embedQuery("hii")
-  .then(async (vectors) => {
-    await pineconeIndex.upsert([
-      {
-        id: "test-id",
-        values: vectors,
-        metadata: { genere: "action" },
-      },
-    ]);
-  })
-  .catch((err) => console.log(err.message));
+// emmbedder
+//   .embedQuery(
+//     `Express is a fast, unopinionated, and minimalist web framework for Node.js, designed for building web applications and APIs.
+//  It acts as a layer between the core Node.js server and an application's logic, simplifying the management of routes, requests, and responses.
+//  Often described as the de facto standard server framework for Node.js, Express is built on top of Node.js and provides a robust set of features for handling HTTP requests, routing, middleware, and more.
+
+// Its core philosophy emphasizes minimalism and flexibility, offering a lightweight foundation that can be easily augmented with middleware modules to add functionality like authentication, logging, request parsing, and error handling.
+//  Express's powerful routing system allows developers to define URL patterns and HTTP methods (such as GET, POST, PUT, DELETE) in a clean and organized manner, making it particularly well-suited for creating RESTful APIs.
+//  The framework supports integration with various templating engines (like Pug, EJS, and Handlebars) for rendering dynamic HTML pages directly from the server.`
+//   )
+//   .then(async (vectors) => {
+//     await pineconeIndex.upsert([
+//       {
+//         id: "express-data",
+//         values: vectors,
+//         metadata: { genere: "action" },
+//       },
+//     ]);
+//   })
+//   .catch((err) => console.log(err.message));
+
+// Query in pinecone
+emmbedder.embedQuery("express?").then(async (vector) => {
+  const result = await pineconeIndex.query({
+    vector: vector,
+    topK: 3,
+    includeMetadata:true
+  });
+  console.log(result);
+});
