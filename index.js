@@ -14,6 +14,8 @@ const { tool } = require("@langchain/core/tools");
 const { z, Schema } = require("zod");
 const { StateGraph, MessagesAnnotation } = require("@langchain/langgraph");
 const { tavily } = require("@tavily/core");
+const { PineconeStore } = require("@langchain/pinecone");
+const { Pinecone: PineconeClient } = require("@pinecone-database/pinecone");
 // creating a model instance for Google Gemini
 
 const model = new ChatGoogleGenerativeAI({
@@ -156,7 +158,6 @@ const template = PromptTemplate.fromTemplate(
 
 // const agent = graph.compile(); // this creates the instance of model + tool graph for use
 
-
 // using the above graph instacne
 // agent
 //   .invoke(
@@ -172,12 +173,46 @@ const template = PromptTemplate.fromTemplate(
 //     );
 //   });
 
+// model instance generating embeddigns in 3071D
+// const emmbedder = new GoogleGenerativeAIEmbeddings({
+//   model: "gemini-embedding-001",
+//   apiKey: process.env.GOOGLE_API_KEY,
+// });
 
-// model instance generating embeddigns
+// querying into model to generate embeddings of the txt
+// emmbedder
+//   .embedQuery("hii")
+//   .then((e) => {
+//     console.log(e);
+//   })
+//   .catch((err) => console.log(err.message));
+
+// Vector database {PineCone}
+
+// generating 768D embedding matching the index size using different model
 const emmbedder = new GoogleGenerativeAIEmbeddings({
-  model: "gemini-embedding-001",
+  model: "text-embedding-004",
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
-// querying into model to generate embeddings of the txt
-emmbedder.embedQuery("hii").then((e)=>{console.log(e)}).catch(err => console.log(err.message))
+//configuring pinecone
+
+const pinecone = new PineconeClient({
+  apiKey: process.env.PINECONE_API_KEY,
+});
+
+const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX);
+
+// generating vectors ans storting data to pinecone
+emmbedder
+  .embedQuery("hii")
+  .then(async (vectors) => {
+    await pineconeIndex.upsert([
+      {
+        id: "test-id",
+        values: vectors,
+        metadata: { genere: "action" },
+      },
+    ]);
+  })
+  .catch((err) => console.log(err.message));
